@@ -56,7 +56,7 @@ def send(chat_id, message):
         return send(chat_id, message)
     except ChatMigrated as e:
         session = DBSession()
-        user = session.query(UUser).filter(UUser.id == user_id).first()
+        user = session.query(UUser).filter(UUser.id == chat_id).first()
         user.id = e.new_chat_id
         session.commit()
         session.close()
@@ -80,38 +80,21 @@ class Moodleuser:
         self.__password = password
         self._session = self.__Login()  # login
         self._courses = self.__ListCourses()  # courselist + name
-        for course in self._courses[0]:
-            if not course[1] in ignore_courses and course[2] == current_semester:
-                Course({"id": course[1], "name": course[0], "semester": course[2], "location": "moodle", "session": self._session})
+        for course in self._courses:
+            if not course[0] in ignore_courses and course[2] == current_semester:
+                print("Adding course "+course[1]+" with id "+course[0])
+                #Course({"id": course[0], "name": course[1], "semester": course[2], "location": "moodle", "session": self._session})
 
     def __Login(self):
         s = requests.Session()
-        s.get(
-            "https://www.moodle.tum.de/Shibboleth.sso/Login?providerId=https%3A%2F%2Ftumidp.lrz.de%2Fidp%2Fshibboleth&target=https%3A%2F%2Fwww.moodle.tum.de%2Fauth%2Fshibboleth%2Findex.php",
-            allow_redirects=True)
-        headers = {'Content-Type': 'application/x-www-form-urlencoded', "Origin": "https://tumidp.lrz.de",
-                   "Connection": "keep-alive", "Content-Length": "74"}
-        auth = s.post("https://tumidp.lrz.de/idp/profile/SAML2/Redirect/SSO?execution=e1s1", headers=headers,
-                      data={"j_username": self._username, "j_password": self.__password, "_eventId_proceed": "",
-                            "donotcache": "1"}, allow_redirects=False)
-        resp = re.search(r"SAMLResponse\" value=\"(.*)\"/>", auth.text)
-        s.cookies = requests.utils.add_dict_to_cookiejar(s.cookies, {
-            "_shibstate_123": "https%3A%2F%2Fwww.moodle.tum.de%2Fauth%2Fshibboleth%2Findex.php"})
-        s.post("https://www.moodle.tum.de/Shibboleth.sso/SAML2/POST", allow_redirects=True,
-               data={"SAMLResponse": resp.groups()[0], "RelayState": "cookie:123"})
+        s.post("https://wattlecourses.anu.edu.au/login/index.php", allow_redirects=True, data={"username":self._username, "password":self.__password})
         return s
 
     def __ListCourses(self):
-        url = "https://www.moodle.tum.de/my/?lang=de"
+        url = "https://wattlecourses.anu.edu.au/my/"
         response = self._session.get(url).text
-        if response.find("<title>Meine Startseite</title>") > -1:
-            courselist = re.findall(
-                r"<a title=\"(.*?)\" href=\"https://www\.moodle\.tum\.de/course/view\.php\?id=([0-9]*)\">.*?coc-metainfo\">\((.*?)  \|",
-                response, re.MULTILINE)
-            fullname = re.search(r'<span class="usertext">(.*?)<', response).groups(1)[0]
-            return [courselist, fullname]
-        else:
-            return [[], ""]
+        courselist = re.findall(r"<h4><a href=\"https://wattlecourses.anu.edu.au/course/view.php\?id=([0-9]*)\" class=\"\">.*? - (.*?) - (.*?)</a>",response, re.MULTILINE)
+        return courselist
 
 
 class Course:
