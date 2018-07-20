@@ -82,8 +82,7 @@ class Moodleuser:
         self._courses = self.__ListCourses()  # courselist + name
         for course in self._courses:
             if not course[0] in ignore_courses and course[2] == current_semester:
-                print("Adding course "+course[1]+" with id "+course[0])
-                #Course({"id": course[0], "name": course[1], "semester": course[2], "location": "moodle", "session": self._session})
+                Course({"id": course[0], "name": course[1], "semester": course[2], "location": "moodle", "session": self._session})
 
     def __Login(self):
         s = requests.Session()
@@ -168,9 +167,9 @@ class Course:
 
 
     def __GetContent(self):
-        r = self._session.get("https://www.moodle.tum.de/course/view.php?id=" + str(self._courseid) + "&lang=de")
+        r = self._session.get("https://wattlecourses.anu.edu.au/course/view.php?id=" + str(self._courseid))
         soup = BeautifulSoup(r.content, "lxml")
-        if "<title>Kurs:" in r.text:
+        if "<title>Course:" in r.text:
             cont = soup.select(".course-content")
             cont = re.sub(r'( (?:aria\-owns=\"|id=\")random[0-9a-f]*_group\")', "", str(cont))
             cont = re.sub(r"(<img.*?>)", "", cont)
@@ -236,8 +235,8 @@ class Course:
                 for key, msg in message.items():
                    send(user.id, msg)
             #This is for debugging onlyr
-            #for key, msg in message.items():
-            #    print(msg)
+#                for key, msg in message.items():
+#                    print(msg)
             session.close()
 
 
@@ -280,7 +279,7 @@ class Block:
                                                   BBlock.title == self._title).first()
         if not blockentry:
             # create block
-            # print("Adding " + self._url + " " + self._title + " " + self._cont)
+            print("Adding " + self._url + " " + self._title + " " + self._cont)
             new_block = BBlock(url=self._url, cont=self._cont, type=self.__type, course=self._course, title=self._title)
             session.add(new_block)
             session.commit()
@@ -293,7 +292,7 @@ class Block:
             else:
                 # speichern des Blockinhalts
                 self._changelist = {"type": "text", "values": [{"type": "text", "cont": self._cont}]}
-        if not not blockentry and re.match(r"https:\/\/www\.moodle\.tum\.de\/mod\/(folder|lti)\/.*?id=([0-9]*)",
+        if not not blockentry and re.match(r"https:\/\/wattlecourses\.anu\.edu\.au\/mod\/(folder|lti)\/.*?id=([0-9]*)",
                                            self._url) is not None:
             # Scan von Ordnern
             link = Link(self)
@@ -312,8 +311,8 @@ class Link:
         self._session = blockself._session
         self._errorcounter = 0
         self._ftitle = blockself._firsttitle if hasattr(blockself, "_firsttitle") else ""
-        normallink = re.match(r"https:\/\/www\.moodle\.tum\.de\/mod\/(.*?)\/.*?id=([0-9]*)", self._url)
-        dllink = re.match(r"https://www\.moodle\.tum\.de/pluginfile\.php/([0-9]*)/mod_folder/content/0/(.*)", self._url)
+        normallink = re.match(r"https:\/\/wattlecourses\.anu\.edu\.au\/mod\/(.*?)\/.*?id=([0-9]*)", self._url)
+        dllink = re.match(r"https://wattlecourses\.anu\.edu\.au/pluginfile\.php/([0-9]*)/mod_folder/content/0/(.*)", self._url)
         if normallink is not None:
             self._urltype = normallink.groups(1)[0]
             self._id = int(normallink.groups(1)[1])
@@ -344,13 +343,13 @@ class Link:
         # Download filelist
         self._values = []
         try:
-            r = self._session.get("https://www.moodle.tum.de/mod/folder/view.php?id=" + str(self._id))
+            r = self._session.get("https://wattlecourses.anu.edu.au/mod/folder/view.php?id=" + str(self._id))
         except requests.exceptions.ChunkedEncodingError:
             self._errorcounter += 1
             if self._errorcounter < 10:
                 self.__ParseFolder(self)
             else:
-                raise NameError('Parsing of folder failed more than 10 times, url:https://www.moodle.tum.de/mod/folder/view.php?id='+str(self._id))
+                raise NameError('Parsing of folder failed more than 10 times, url:https://wattlecourses.anu.edu.au/mod/folder/view.php?id='+str(self._id))
         soup = BeautifulSoup(r.text, "lxml")
         files = soup.select(".fp-filename-icon")
         for file in files:
@@ -416,7 +415,7 @@ def processfile(file):
                              date=datetime.now(), url=file["url"])
             session.add(new_file)
             session.commit()
-            file["title"] += " (Moodle)"
+            file["title"] += " (Wattle)"
             os.remove(filename)
         # Speichern der Änderungen für Rückgabe
         values = {"type": "url", "title": file["title"], "url": file["url"],
@@ -497,8 +496,8 @@ print("Processing Moodle:")
 moodle = Moodleuser(config['DEFAULT']['Username'], config['DEFAULT']['Password'])
 # process all content outside of Moodle
 print("Processing other content: ")
-processothercontent()
+#processothercontent()
 
 # finally process all videos
 print("Processing Videos:")
-ProcessVideos(config['DEFAULT']['Username'], config['DEFAULT']['Password'], moodle._session)
+#ProcessVideos(config['DEFAULT']['Username'], config['DEFAULT']['Password'], moodle._session)
