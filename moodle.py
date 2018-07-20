@@ -207,11 +207,11 @@ class Course:
         if len(self._changes) > 0:
             counter = 0
             if self._location == "moodle" or self._location == "moodle_basic":
-                message = {0: "Änderungen im Kurs <a href=\"https://www.moodle.tum.de/course/view.php?id=" + str(
-                    self._courseid) + "\">" + self._coursename + "</a> erkannt:"}
+                message = {0: "Changes in course <a href=\"https://www.moodle.tum.de/course/view.php?id=" + str(
+                    self._courseid) + "\">" + self._coursename + "</a> detected:"}
             elif self._location == "default":
-                message = {0: "Änderungen im Kurs <a href=\"" + str(
-                    self._url) + "\">" + self._coursename + "</a> erkannt:"}
+                message = {0: "Changes in course <a href=\"" + str(
+                    self._url) + "\">" + self._coursename + "</a> detected:"}
             for entry in self._changes:
                 if entry["type"] == "url":
                     toadd = "\n<a href=\"" + entry["url"] + "\">" + entry["title"] + "</a>"
@@ -234,7 +234,7 @@ class Course:
                 session.commit()
                 for key, msg in message.items():
                    send(user.id, msg)
-            #This is for debugging onlyr
+            #This is for debugging only
 #                for key, msg in message.items():
 #                    print(msg)
             session.close()
@@ -318,7 +318,11 @@ class Link:
             self._id = int(normallink.groups(1)[1])
             if self._urltype == "resource":
                 # additional processing as file
-                r=processfile({"url": self._url, "title": self._title, "_ftitle": self._ftitle, "cont": self._cont,
+                # the next three lines work around the weird non-js behaviour of Wattle when downloading files outside a folder
+                x=self._session.get(self._url)
+                soup = BeautifulSoup(x.text, "lxml")
+                file = soup.select(".resourceworkaround a")
+                r=processfile({"url": file[0]["href"], "title": self._title, "_ftitle": self._ftitle, "cont": self._cont,
                      "id": self._id, "session": self._session, "course": self._course})
                 self._values=[r] if r is not None else []
             elif self._urltype == "folder":
