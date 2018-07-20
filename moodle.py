@@ -39,9 +39,9 @@ bot = telegram.Bot(token=config['DEFAULT']['BotToken'])
 
 
 def send(chat_id, message):
-    button_list = [[InlineKeyboardButton("🛡️ Ben. deaktivieren", callback_data="5$0"),
-                    InlineKeyboardButton("📆 Sem. wählen", callback_data="4"),
-                    InlineKeyboardButton("🔍 Kurse anzeigen", callback_data="1")]]
+    button_list = [[InlineKeyboardButton("🛡️ Dis. Notifications", callback_data="5$0"),
+                    InlineKeyboardButton("📆 Select Sem", callback_data="4"),
+                    InlineKeyboardButton("🔍 Show Course", callback_data="1")]]
     reply_markup = InlineKeyboardMarkup(button_list)
     try:
         bot.sendMessage(chat_id=chat_id, text=message, parse_mode=telegram.ParseMode.HTML, reply_markup=reply_markup)
@@ -108,7 +108,7 @@ class Course:
         self._url = course["url"] if "url" in course else ""
         if course["location"] == "moodle":
             self.__GetContent()
-            # Jetzt mit der DB abgleichen
+            # Now compare with database
             session = DBSession()
             courseentry = session.query(CCourse).filter(CCourse.id == course["id"]).first()
             if not courseentry:
@@ -119,11 +119,11 @@ class Course:
                 os.mkdir(config['DEFAULT']['CopyDir'] + re.sub('[^\w\-_\. ()\[\]]', '_', self._coursename))
             else:
                 if courseentry.location != "moodle":
-                    # Obacht, jetzt kommen spezial-Sachen f�r moodle-kurse
+                    # Here we deal with special courses
                     self._location=courseentry.location
                     if self._location == "moodle_basic":
-                        # Jetzt suchen wir nur noch Links nach Dateien ab
-                        # Also suchen wir erstmal alle Links raus
+                        # Here we only look for files
+                        # So we first find all links
                         soup=BeautifulSoup(self.__content, "lxml")
                         a = soup("a")
                         session = DBSession()
@@ -139,15 +139,15 @@ class Course:
                                 if lin is not None and "t.me" in lin["url"]:
                                     self._changes.append(lin)
                 else:
-                    # jetzt splitten und den rest
+                    # now split and process the rest
                     self.__blocks = self.__Split()
             session.close()
         else:
-            # jetzt kommt der neue Teil
+            # that's a new part for wsi.tum.de
             if course["location"] == "default":
                 self._parsepdf()
 
-        # Hier kommt jetzt die Ausgabe oder sowas von allen Änderungen, die in self._changes gespeichert sind
+        # That's the output of changes in self._changes
         self.__PropagateChanges()
 
     def _parsepdf(self):
@@ -262,7 +262,7 @@ class Block:
                 self._cont = soup.parent.select(".contentafterlink")[0].text
             except (AttributeError, IndexError):
                 self._cont = ""
-                # Erstellen den Link-Objekts später, um wiederholte Downloads zu verhindern
+                # Create link object later to avoid repeating downloads
         elif "contentwithoutlink" in soup.get('class', []):
             self.__type = "contentwithoutlink"
             self._url = ""
@@ -273,7 +273,7 @@ class Block:
             self._url = ""
             self._cont = soup.text
             self._title = ""
-        # speichern bzw abgleichen mit DB
+        # save or compare with database
         session = DBSession()
         blockentry = session.query(BBlock).filter(BBlock.url == self._url, BBlock.cont == self._cont,
                                                   BBlock.title == self._title).first()
@@ -283,20 +283,20 @@ class Block:
             new_block = BBlock(url=self._url, cont=self._cont, type=self.__type, course=self._course, title=self._title)
             session.add(new_block)
             session.commit()
-            ## Hier die Änderung registrieren -> Bei Dateien 
+            ## Register changes of files
             if self.__type == "url":
                 link = Link(self)
-                # speichern als Link zu message/Datei
+                # save as link to message/file
                 self._changelist = {"type": "url",
                                     "values": link._values}  # {"type":"url", "title":self._title, "url":link._url, "contentafterlink":self._cont}}
             else:
-                # speichern des Blockinhalts
+                # saving block contents
                 self._changelist = {"type": "text", "values": [{"type": "text", "cont": self._cont}]}
         if not not blockentry and re.match(r"https:\/\/wattlecourses\.anu\.edu\.au\/mod\/(folder|lti)\/.*?id=([0-9]*)",
                                            self._url) is not None:
-            # Scan von Ordnern
+            # Scan of folders
             link = Link(self)
-            # speichern als Link zu message/Datei
+            #  save as link to message/file
             self._changelist = {"type":"url", "values": link._values }
         session.close()
 
@@ -317,7 +317,7 @@ class Link:
             self._urltype = normallink.groups(1)[0]
             self._id = int(normallink.groups(1)[1])
             if self._urltype == "resource":
-                # zusätzliche Verarbeitung als Datei
+                # additional processing as file
                 r=processfile({"url": self._url, "title": self._title, "_ftitle": self._ftitle, "cont": self._cont,
                      "id": self._id, "session": self._session, "course": self._course})
                 self._values=[r] if r is not None else []
@@ -327,7 +327,7 @@ class Link:
             elif self._urltype == "lti":
                 # videoordner
                 self.__PrepareVideoFolder()
-            else:  # URL entspricht Muster ist aber nicht folder oder ressource
+            else:  # URL has right pattern but is not file or folder
                 self._urltype = "unknown"
                 self._id = 0
                 self._values = [{"type": "url", "title": self._title, "url": self._url, "contentafterlink": self._cont}]
@@ -336,7 +336,7 @@ class Link:
             l = processfile({"url":self._url, "title":self._title, "_ftitle":self._ftitle, "cont":self._cont,
                                         "id":self._id, "session":self._session, "course":self._course})
             self._values = [l] if l is not None else []
-        else:  # Link entspricht nicht dem Schema
+        else:  # Link has wrong pattern
             self._values = []
 
     def __ParseFolder(self):
@@ -403,7 +403,7 @@ def processfile(file):
                 move(filename, fullpath + "/" + filename)
             else:
                 move(filename, path + "/" + filename)
-            # in DB speichern
+            # save in DB
             file["url"] = "https://t.me/" + config["DEFAULT"]["FilesChannelName"] + "/" + str(resp.message_id)
             new_file = FFile(id=file["id"], course=file["course"], title=file["title"], message_id=resp.message_id,
                              date=datetime.now(), url=file["url"])
@@ -417,7 +417,7 @@ def processfile(file):
             session.commit()
             file["title"] += " (Wattle)"
             os.remove(filename)
-        # Speichern der Änderungen für Rückgabe
+        # Save changes to return
         values = {"type": "url", "title": file["title"], "url": file["url"],
                    "contentafterlink": file["cont"] if "cont" in file else ""}
     else:
@@ -495,9 +495,10 @@ def processothercontent():
 print("Processing Moodle:")
 moodle = Moodleuser(config['DEFAULT']['Username'], config['DEFAULT']['Password'])
 # process all content outside of Moodle
-print("Processing other content: ")
+## The following has not been tested or fixed for ANU Wattle
+#print("Processing other content: ")
 #processothercontent()
 
 # finally process all videos
-print("Processing Videos:")
+#print("Processing Videos:")
 #ProcessVideos(config['DEFAULT']['Username'], config['DEFAULT']['Password'], moodle._session)

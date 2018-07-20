@@ -3,8 +3,8 @@ Description=Moodle Bot Daemon
 
 [Service]
 Type=simple
-WorkingDirectory=/home/alwin/bots/moodle
-ExecStart=/home/alwin/bots/moodle/moodle_daemon.py
+WorkingDirectory=/home/alwin/bots/anuwattlebot
+ExecStart=/home/alwin/bots/anuwattlebot/moodle_daemon.py
 User=alwin
 
 [Install]

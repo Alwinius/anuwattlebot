@@ -29,7 +29,7 @@ config.read('config/config.ini')
 updater = Updater(token=config['DEFAULT']['BotToken'])
 dispatcher = updater.dispatcher
 
-default_semester = "WiSe 2016-17"
+default_semester = "Sem 2 2018"
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -59,8 +59,7 @@ def CheckUser(bot, update, arg=None):
         session.add(new_user)
         session.commit()
         new_usr = copy.deepcopy(new_user)
-        message = "Dieser Bot bietet Zugriff auf alle Moodle-Dateien zum Bachelor Elektro- und Informationstechnik ab " \
-                  "WS16/17. "
+        message = "This bot gives you access to selected ANU Wattle courses in Sem 2 2018. For more, check out /about"
         bot.sendMessage(chat_id=chat.id, text=message, reply_markup=telegram.ReplyKeyboardHide())
         session.close()
         return new_usr
@@ -74,7 +73,7 @@ def CheckUser(bot, update, arg=None):
         return ent
 
 
-def Semester(bot, update):  # Semesterauswahl anzeigen
+def Semester(bot, update):  # Show semester selection
     CheckUser(bot, update)
     session = DBSession()
     semesters = list()
@@ -85,7 +84,7 @@ def Semester(bot, update):  # Semesterauswahl anzeigen
     for entry in sorted(semesters):
         button_list.append([InlineKeyboardButton(entry, callback_data="4$" + entry)])
     reply_markup = InlineKeyboardMarkup(button_list)
-    send_or_edit(bot, update, "Bitte wähle ein Semester aus.", reply_markup)
+    send_or_edit(bot, update, "Please select a semester.", reply_markup)
     session.close()
 
 
@@ -96,14 +95,14 @@ def SetSemester(bot, update):
     newsemester = dat[1]
     if newsemester == usr.semester:
         # no change
-        ShowHome(bot, update, usr, "Semester nicht geändert.")
+        ShowHome(bot, update, usr, "Semester not changed.")
     else:
         session = DBSession()
         user = session.query(UUser).filter(UUser.id == usr.id).first()
         user.semester = newsemester
         session.commit()
         session.close()
-        ShowHome(bot, update, usr, "Semester geändert auf " + newsemester)
+        ShowHome(bot, update, usr, "Semester changed to " + newsemester)
 
 
 def SetNotifications(bot, update, arg):
@@ -111,13 +110,13 @@ def SetNotifications(bot, update, arg):
     session = DBSession()
     user = session.query(UUser).filter(UUser.id == usr.id).first()
     if int(arg) == int(user.notifications):
-        ShowHome(bot, update, usr, "Benachrichtigungen nicht geändert.")
+        ShowHome(bot, update, usr, "Notifications not changed.")
     else:
         user.notifications = bool(int(arg))
         session.commit()
         usr.notifications = bool(int(arg))
-        options = ["deaktiviert.", "aktiviert."]
-        ShowHome(bot, update, usr, "Benachrichtigungen wurden " + options[int(arg)])
+        options = ["deactivated.", "activated."]
+        ShowHome(bot, update, usr, "Notifications are " + options[int(arg)])
         session.rollback()
     session.close()
 
@@ -131,37 +130,37 @@ def ShowCourses(bot, update):
         button_list.append([InlineKeyboardButton(entry.name, callback_data="1$" + str(entry.id))])
     button_list.append([InlineKeyboardButton("🏠 Home", callback_data="0")])
     reply_markup = InlineKeyboardMarkup(button_list)
-    send_or_edit(bot, update, "Bitte wähle einen Kurs aus.", reply_markup)
+    send_or_edit(bot, update, "Please select a course.", reply_markup)
     session.close()
 
 
 def ShowCourseContent(bot, update, arg):
     CheckUser(bot, update, arg)
     session = DBSession()
-    # erstmal schauen ob Videos exisistieren
+    # check if videos exist
     entry = session.query(MMedia).filter(MMedia.course == arg).first()
     if not not entry:
         button_list = [
-            [InlineKeyboardButton("🏠 Home", callback_data="0"), InlineKeyboardButton("🔍 Kurse", callback_data="1"),
+            [InlineKeyboardButton("🏠 Home", callback_data="0"), InlineKeyboardButton("🔍 Courses", callback_data="1"),
              InlineKeyboardButton("🎞️ Videos", callback_data="6$" + arg)]]
     else:
         button_list = [
-            [InlineKeyboardButton("🏠 Home", callback_data="0"), InlineKeyboardButton("🔍 Kurse", callback_data="1")]]
+            [InlineKeyboardButton("🏠 Home", callback_data="0"), InlineKeyboardButton("🔍 Courses", callback_data="1")]]
     reply_markup = InlineKeyboardMarkup(button_list)
-    # nun die Elemente in Form bringen
+    # Now format elements
     entries = session.query(FFile).filter(FFile.course == arg).all()
     if len(entries) > 0:
         if entries[0].coursedata.url is not None:
-            message = {0: "Dateien zu [" + entries[0].coursedata.name.replace("[", "(").replace("]",")") + "](" + str(
+            message = {0: "Files for [" + entries[0].coursedata.name.replace("[", "(").replace("]",")") + "](" + str(
                 entries[0].coursedata.url) + "): \n"}
         else:
-            message = {0: "Dateien zu [" + entries[0].coursedata.name.replace("[", "(").replace("]",
-                   ")") + "](https://www.moodle.tum.de/course/view.php?id=" + str(entries[0].course) + "): \n"}
+            message = {0: "Files for [" + entries[0].coursedata.name.replace("[", "(").replace("]",
+                   ")") + "](https://wattlecourses.anu.edu.au/course/view.php?id=" + str(entries[0].course) + "): \n"}
     else:
-        message = {0: "Noch keine Dateien vorhanden."}
+        message = {0: "No files available yet."}
     counter = 0
     for ent in entries:
-        toadd = "[" + ent.title + "](https://t.me/tummoodle/" + ent.message_id + ")\n" if ent.message_id != "0" else "[" + ent.title + " (extern)](" + ent.url + ")\n"
+        toadd = "[" + ent.title + "](https://t.me/anuwattlefiles/" + ent.message_id + ")\n" if ent.message_id != "0" else "[" + ent.title + " (external)](" + ent.url + ")\n"
         if len(message[counter] + toadd) > 4096:
             counter += 1
             message[counter] = toadd
@@ -187,19 +186,19 @@ def ShowVideoContent(bot, update, arg):
     CheckUser(bot, update)
     button_list = [
         [InlineKeyboardButton("🏠 Home", callback_data="0"), InlineKeyboardButton("🔍 Kurse", callback_data="1"),
-         InlineKeyboardButton("📔 Dieser Kurs", callback_data="1$" + arg)]]
+         InlineKeyboardButton("📔 This course", callback_data="1$" + arg)]]
     reply_markup = InlineKeyboardMarkup(button_list)
     session = DBSession()
     entries = session.query(MMedia).filter(MMedia.course == arg).all()
     if len(entries) > 0:
         if entries[0].coursedata.url is not None:
-            message = {0: "Videos zu [" + entries[0].coursedata.name.replace("[", "(").replace("]",")") + "](" + str(
+            message = {0: "Videos for [" + entries[0].coursedata.name.replace("[", "(").replace("]",")") + "](" + str(
                 entries[0].coursedata.url) + "): \n"}
         else:
-            message = {0: "Videos zu [" + entries[0].coursedata.name.replace("[", "(").replace("]",
-                   ")") + "](https://www.moodle.tum.de/course/view.php?id=" + str(entries[0].course) + "): \n"}
+            message = {0: "Videos for [" + entries[0].coursedata.name.replace("[", "(").replace("]",
+                   ")") + "](https://wattlecourses.anu.edu.au/course/view.php?id=" + str(entries[0].course) + "): \n"}
     else:
-        message = {0: "Noch keine Videos vorhanden."}
+        message = {0: "No videos uploaded yet."}
     counter = 0
     for ent in sorted(entries, key=lambda x: x.date):
         toadd = "[" + ent.name + "](" + ent.playerurl + ")"
@@ -235,11 +234,11 @@ def Start(bot, update):
 
 
 def ShowHome(bot, update, usr, text="🏠 Home"):
-    button1 = InlineKeyboardButton("🛡️ Benachrichtigungen deaktivieren",
+    button1 = InlineKeyboardButton("🛡️ Disable Notifications",
                                    callback_data="5$0") if usr.notifications else InlineKeyboardButton(
-        "📡 Benachrichtigungen aktivieren", callback_data="5$1")
-    button_list = [[button1], [InlineKeyboardButton("📆 Semester auswählen", callback_data="4")],
-                   [InlineKeyboardButton("🔍 Kurse anzeigen", callback_data="1")]]
+        "📡 Enable Notifications", callback_data="5$1")
+    button_list = [[button1], [InlineKeyboardButton("📆 Select Semester", callback_data="4")],
+                   [InlineKeyboardButton("🔍 Show Courses", callback_data="1")]]
     reply_markup = InlineKeyboardMarkup(button_list)
     send_or_edit(bot, update, text, reply_markup)
 
@@ -249,8 +248,8 @@ def About(bot, update):
     button_list = [[InlineKeyboardButton("🏠 Home", callback_data="0")]]
     reply_markup = InlineKeyboardMarkup(button_list)
     bot.sendMessage(chat_id=update.message.chat_id,
-                    text="Dieser Bot wurde erstellt von @Alwinius. Der Quellcode ist unter "
-                         "https://github.com/Alwinius/tummoodlebot verfügbar.\nWeitere interessante Bots: \n - "
+                    text="This bot was created by @Alwinius based on @tummoodlebot. Source code is available at "
+                         "https://github.com/Alwinius/anuwattlebot \nMore interesting bots: \n - "
                          "@tummensabot\n - @mydealz_bot",
                     reply_markup=reply_markup)
 
@@ -280,7 +279,7 @@ def Fileupload(bot, update):
             session.add(new_file)
             session.commit()
             button_list = [[InlineKeyboardButton("🏠 Home", callback_data="0"),
-                            InlineKeyboardButton("📔 Dieser Kurs", callback_data="1$" + str(usr.current_selection))]]
+                            InlineKeyboardButton("📔 This Course", callback_data="1$" + str(usr.current_selection))]]
             reply_markup = InlineKeyboardMarkup(button_list)
             message = "[" + entry.name + " - " + update.message.caption + "](" + url + ")"
             bot.sendMessage(chat_id=update.message.chat_id, text=message,
@@ -291,7 +290,7 @@ def Fileupload(bot, update):
         button_list = [[InlineKeyboardButton("🏠 Home", callback_data="0")]]
         reply_markup = InlineKeyboardMarkup(button_list)
         bot.sendMessage(chat_id=update.message.chat_id,
-                        text="Du hast keine Berechtigung, Dateien hochzuladen" + str(usr.id),
+                        text="You're not allowed to upload files" + str(usr.id),
                         reply_markup=reply_markup)
 
 
@@ -301,25 +300,25 @@ def AllInline(bot, update):
         Start(bot, update)
     elif int(args[0]) == 1:
         if len(args) > 1:
-            # Kursinhalte anzeigen
+            # Show course contents
             ShowCourseContent(bot, update, args[1])
         else:
-            # Kurs auswählen
+            # Select course
             ShowCourses(bot, update)
     elif int(args[0]) == 4:
-        # Semester auswählen oder speichern
+        # Select semester of save
         if len(args) > 1:
             SetSemester(bot, update)
         else:
             Semester(bot, update)
     elif int(args[0]) == 5 and len(args) > 1:
-        # Benachrichtigungen ändern
+        # Change notifications
         SetNotifications(bot, update, args[1])
     elif int(args[0]) == 6 and len(args) > 1:
         ShowVideoContent(bot, update, args[1])
     else:
-        update.callback_query.message.reply_text("Kommando nicht erkannt")
-        bot.sendMessage(text="Inlinekommando nicht erkannt.\n\nData: " + update.callback_query.data + "\n User: " + str(
+        update.callback_query.message.reply_text("Command not recognised")
+        bot.sendMessage(text="Inlinecommand not recognised.\n\nData: " + update.callback_query.data + "\n User: " + str(
             update.callback_query.message.chat), chat_id=config['DEFAULT']['AdminId'])
 
 
@@ -337,6 +336,7 @@ dispatcher.add_handler(filehandler)
 fallbackhandler = MessageHandler(Filters.text, Start)
 dispatcher.add_handler(fallbackhandler)
 
-updater.start_webhook(listen='localhost', port=4214, webhook_url=config['DEFAULT']['WebHookUrl'])
+updater.start_webhook(listen='localhost', port=4219, webhook_url=config['DEFAULT']['WebHookUrl'])
+updater.bot.set_webhook(config['DEFAULT']['WebHookUrl'])
 updater.idle()
 updater.stop()
