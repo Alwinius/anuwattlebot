@@ -41,7 +41,7 @@ bot = telegram.Bot(token=config['DEFAULT']['BotToken'])
 def send(chat_id, message):
     button_list = [[InlineKeyboardButton("🛡️ Dis. Notifications", callback_data="5$0"),
                     InlineKeyboardButton("📆 Select Sem", callback_data="4"),
-                    InlineKeyboardButton("🔍 Show Course", callback_data="1")]]
+                    InlineKeyboardButton("🔍 Show Courses", callback_data="1")]]
     reply_markup = InlineKeyboardMarkup(button_list)
     try:
         bot.sendMessage(chat_id=chat_id, text=message, parse_mode=telegram.ParseMode.HTML, reply_markup=reply_markup)
@@ -207,7 +207,7 @@ class Course:
         if len(self._changes) > 0:
             counter = 0
             if self._location == "moodle" or self._location == "moodle_basic":
-                message = {0: "Changes in course <a href=\"https://www.moodle.tum.de/course/view.php?id=" + str(
+                message = {0: "Changes in course <a href=\"https://wattlecourses.anu.edu.au/course/view.php?id=" + str(
                     self._courseid) + "\">" + self._coursename + "</a> detected:"}
             elif self._location == "default":
                 message = {0: "Changes in course <a href=\"" + str(
